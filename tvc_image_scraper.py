@@ -1,103 +1,105 @@
-import re
+import os
 import urllib
 import shutil
 import requests
+from datetime import date
 from bs4 import BeautifulSoup
 
-def get_last_page_number(base_url):
+import collections
 
+
+def create_folder(folder_name):
+    if not os.path.exists(folder_name):
+        os.mkdir(folder_name)
+
+
+def get_last_page_number(base_url):
+    # List to store all pages that we will examine
+    page_numbers = []
     response = requests.get(base_url)
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    print(soup)
-
-    div = soup.find("div", {"id": "collection-footer"})
-    print("base_url", base_url)
-    print("HERE", div)
-
-    # web_page = base_url + str(page_counter)
-
-    # print("web_page", web_page)
-
-    # try:
-    #     response = requests.get(web_page)
-    #     print("URL is valid and exists on the internet")
-    #     page_counter+=1
-    #     get_last_page_number(base_url, page_counter)
-
-    # except requests.ConnectionError as exception:
-    #     return page_counter
+    # Get all pages displayed at the bottom of the screen
+    pagination = soup.find('ul', class_='pagination')
+    for href in pagination.find_all('a', href=True):
+        if href.text.isnumeric():
+            page_numbers.append(href.text)
+    # print("page_numbers", page_numbers)
+    return max(page_numbers)
 
 
 
-def scrape_images_from_page(page_url):
+
+def scrape_images_from_page(base_url, page_no, date):
     """ Used to download all of the images from a given web page.
-        All of the downloaded images will then be saved as their names on the website 
+        Each image will have a unique identifier created for it of <<ITEM_NAME>>_<<PAGE_NUMBER>>_<<DATE>>
     Args:
-        page_url (List) : A String URL of the page containing all of the images you want to download
+        base_url (List) : A String URL of the page containing all of the images you want to download
+        page_no (String) : A String representing the current page being looked at
+        date (String) : The current date in the format: DD_MM_YYYY
         
     """
+    # Creating the URL for each page 
+    page_url = base_url + str(page_no)
     response = requests.get(page_url)
     soup = BeautifulSoup(response.text, 'html.parser')
+    # List to store all product ID's on the page 
 
     # Collect all images from the page
     for image in soup.findAll('img'):
         # Get the image data-src and name
         src = image.get('src', image.get('dfr-src'))
         name = image.get('alt', image.get('alt'))
-
+        # Check if there is a source
         if src is None:
             continue 
+
         # Clean the image URL so that it can used to download the image
         image_url = 'https:' + src.strip().split("?")[0]
-        # print("Name:", name)
-        # print("SRC:", src)
-        # print()
 
         # Download the image
-        # img_data = requests.get(image_url).content
-        # image_name = name + '.jpg'
-        # # Save the downloaded image to the clothes folder
-        # with open('clothes/' + image_name, 'wb') as handler:
-        #     handler.write(img_data)
+        img_data = requests.get(image_url).content
+        # Creating a unique image identifier 
+        unique_image_identifier  = name.replace(" ", "_").lower() + "_" + page_no + "_" + date + ".jpg"
+        # Get the folder name based on the date
+        folder_name = date + "/"   
+        # Save the downloaded image to the created date folder
+        try:
+            with open(folder_name + unique_image_identifier, 'wb') as handler:
+                handler.write(img_data)
+
+        except:
+            print("Couldnt save " + unique_image_identifier)
 
 
-"""
-iterate over every page of shop URL
-save the original name of the image as well as give it a new coded image EG 0_M , 1_36W_34L
-create JSON file that can be updated for the countrer as all these codes
-
-
-"""
 
 def scrape_tvc_main():
 
+    today = date.today()
+    print("Today's date:", today)
 
-    # Need a way to know how many pages are in the collection
-    page_counter = 1
+    # Get the current date and create a folder 
+    formatted_date = today.strftime("%d_%m_%Y")
+    folder_name = formatted_date + "/"
+    create_folder(folder_name)
+
     # Hard code way of collecting the last number in the list 
-    base_url = 'https://wearetvc.com/collections/all?page=1'
+    base_url = 'https://wearetvc.com/collections/all?page='
+
+    page_one_url = base_url + "1"
     
     # Find out how many pages we have to iterate over
-    total_pages = get_last_page_number(base_url)
+    total_pages = get_last_page_number(page_one_url)
 
+    # product_ids = []
+    for i in range(1, int(total_pages) + 1):
+        scrape_images_from_page(base_url, str(i), formatted_date)
+        # product_ids = product_ids + downloaded_product_ids
 
-    scrape_images_from_page(base_url)
+    # print(product_ids)
+    # print("DUPLICATES:")
+    # print([item for item, count in collections.Counter(product_ids).items() if count > 1])
 
 
 if __name__ == "__main__":
     scrape_tvc_main()
-
- 
-
-#  ━━-╮
-# ╰┃ ┣▇━▇
-#  ┃ ┃  ╰━▅╮
-#  ╰┳╯ ╰━━┳╯E Z A F
-#   ╰╮ ┳━━╯T Y 4
-#  ▕▔▋ ╰╮╭━╮ T U T O R I A L
-# ╱▔╲▋╰━┻┻╮╲╱▔▔▔╲
-# ▏  ▔▔▔▔▔▔▔  O O┃
-# ╲╱▔╲▂▂▂▂╱▔╲▂▂▂╱
-#  ▏╳▕▇▇▕ ▏╳▕▇▇▕
-#  ╲▂╱╲▂╱ ╲▂╱╲▂   
