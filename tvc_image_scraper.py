@@ -1,11 +1,15 @@
 import os
 import urllib
 import shutil
+# import hashlib
 import requests
 from datetime import date
 from bs4 import BeautifulSoup
 
-import collections
+from PIL import Image, ImageStat
+
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
 
 
 def create_folder(folder_name):
@@ -73,28 +77,85 @@ def scrape_images_from_page(base_url, page_no, date):
 
 
 
-def scrape_tvc_main():
+# def upload_to_google_drive(folder_name):
 
-    today = date.today()
-    print("Today's date:", today)
 
-    # Get the current date and create a folder 
-    formatted_date = today.strftime("%d_%m_%Y")
-    folder_name = formatted_date + "/"
-    create_folder(folder_name)
+def check_for_duplicates(path):
+    # Dicts to store the image ID's & pixel mean as well as their image ID's & the folder theyre contained in
+    parent_map = {}
+    folder_dict = {}
+    folders = os.listdir(path)
+    for folder in folders:
+        # Get path to each folder and list of images it contains
+        folder_path = path  + folder + "/"
+        image_list = os.listdir(folder_path)
+        for image in image_list:
+            # Get the path to the image and create a hashcode and add it to the map
+            image_path = folder_path + image
+            image_org = Image.open(image_path)
+            pix_mean = ImageStat.Stat(image_org).mean
+            # Save pixel mean to map with the image identifier as its key
+            parent_map[image] = pix_mean
+            # Save image name as key & folder
+            folder_dict[image] = folder
 
+    # Save all pixel means to a list to identify duplicate values
+    img_vals = list(parent_map.values())
+    duplicate_vals = [x for i, x in enumerate(img_vals) if img_vals.count(x) > 1]
+    # Dictionary containing no duplicates
+    cleaned_dict = {key:val for key, val in parent_map.items() if val not in duplicate_vals}
+
+    # Find what folder each of the unique ID's are contained in and copy them to the cleaned folder
+    unique_images = list(cleaned_dict.keys())
+    for image_name in unique_images:
+        folder = folder_dict[image_name]
+        src = "tmp/"+ folder + "/" + image_name
+        dest = "clothes_dataset/" + image_name
+        shutil.move(src, dest)
+
+
+def get_images_from_wearTVC(formatted_date):
+    """ Creates a segmented video using the frame indexes provided in frames
+    Args:
+        parent_frame_folder_path (String) : A string indicating the parent folder of all frames Eg. "video_frames/<<video_name>>/"
+    Returns:
+        parent_frame_folder_path (String) : A string indicating the parent folder of all frames Eg. "video_frames/<<video_name>>/"
+    """
     # Hard code way of collecting the last number in the list 
     base_url = 'https://wearetvc.com/collections/all?page='
-
     page_one_url = base_url + "1"
-    
     # Find out how many pages we have to iterate over
     total_pages = get_last_page_number(page_one_url)
-
-    # product_ids = []
+    product_ids = []
     for i in range(1, int(total_pages) + 1):
         scrape_images_from_page(base_url, str(i), formatted_date)
-        # product_ids = product_ids + downloaded_product_ids
+
+
+def get_dataset_size(path):
+    img_count = len(os.listdir(path))
+
+    print("The current size of the dataset is", img_count)
+
+
+def scrape_tvc_main():
+    # Base folder that all of the clothes dataset will be stored in
+    tmp_folder = "tmp/"
+    clothes_dataset = "clothes_dataset/"
+    create_folder(clothes_dataset)
+    create_folder(tmp_folder)
+    # Get the current date and create a folder
+    today = date.today() 
+    formatted_date = today.strftime("%d_%m_%Y")
+    folder_name = tmp_folder + formatted_date + "/"
+    create_folder(folder_name)
+    
+    # get_images_from_wearTVC(formatted_date)
+    # Now check if any duplicates exist in our dataset
+    # check_for_duplicates(tmp_folder)
+    
+    get_dataset_size(clothes_dataset)
+
+    # upload_to_google_drive(folder_name)
 
     # print(product_ids)
     # print("DUPLICATES:")
