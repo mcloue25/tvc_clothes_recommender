@@ -4,29 +4,26 @@ import json
 import urllib
 import shutil
 import requests
-import hashlib
-
-from datetime import date
-from bs4 import BeautifulSoup
-
-from PIL import Image, ImageStat
-
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-
-import skimage.measure
-import matplotlib.pyplot as plt
-import numpy as np
-import cv2
-import os
-import imghdr
-
-#To search for duplicates within two folders:
 
 from difPy import dif
+from datetime import date
+from bs4 import BeautifulSoup
+from PIL import Image, ImageStat
 
-# https://donnclothing.com/shop/page/3/?product-cato=196
+# from pydrive.auth import GoogleAuth
+# from pydrive.drive import GoogleDrive
 
+# import numpy as np
+# import cv2
+# import imghdr
+
+""" WEBSITES TO BE SCRAPED
+
+    Donn Clothing:          https://donnclothing.com/shop/
+    TVC Clothing:           https://wearetvc.com/
+    TVC Asos MarketPlace:   https://marketplace.asos.com/boutique/tvc-vintage
+
+"""
 
 def create_folder(folder_name):
     if not os.path.exists(folder_name):
@@ -66,12 +63,13 @@ def scrape_images_from_page(base_url, page_no, date):
     page_url = base_url + page_no + "/"
     # response = requests.get(page_url)
     # soup = BeautifulSoup(response.text, 'html.parser')
-    print(page_url) 
+    # print(page_url) 
     
     response = requests.get(page_url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     # print("URL:", page_url)
     # Collect all images from the page
+
     counter = 0
     for image in soup.findAll('img'):
         # Get the image data-src and name
@@ -81,26 +79,30 @@ def scrape_images_from_page(base_url, page_no, date):
         if src is None:
             continue 
 
-        print("SRC", src)
-        print("name", name)
+        # # Removes the majority of logos from donnclothing.com
+        # if name == "DONN Clothing":
+        #     print("Donn Clothing Logo")
+
+        # else:
+        #     print("SRC", src)
+        #     print("name", name)
+
         # Clean the image URL so that it can used to download the image
-        # image_url = 'https:' + src.strip().split("?")[0]
-        image_url = src.strip().split("?")[0]
-        print("IMAGE_URL", image_url)
+        image_url = 'https:' + src.strip().split("?")[0]
+        # image_url = src.strip().split("?")[0]
         # Download the image
         img_data = requests.get(image_url).content
-        # Creating a unique image identifier 
-        unique_image_identifier  = name.replace(" ", "_").lower() + "_" + page_no.replace("/", "") + "_" + date + ".jpg"
-        uid  = str(page_no) + "_" + str(counter) + ".jpg"
+        # Creating a unique image identifier:  <<name>>_<<page_number>>_<<counter>>_<<date>>
+        unique_image_identifier  = name.replace(" ", "_").lower() + "_" + page_no.replace("/", "") + "_" + str(counter) + "_" + date + ".jpg"
         # Get the folder name based on the date
         folder_name = "tmp/" + date + "/"  
         counter +=1
-        print("BOTH:", folder_name + unique_image_identifier)
+        print("UID", unique_image_identifier)
         # Save the downloaded image to the created date folder
         try:
-            with open(folder_name + uid, 'wb') as handler:
+            with open(folder_name + unique_image_identifier, 'wb') as handler:
                 handler.write(img_data)
-                print("Saved:", folder_name + uid)
+                print("SAVED:", folder_name + unique_image_identifier)
                 print()
 
         except Exception as e:
@@ -128,32 +130,54 @@ def scrape_all_clothes_images(base_url, page_no, date):
     # for image in soup.findAll('img'):
 
 
-def check_for_duplicates():
+def check_for_duplicates(folder_path):
     """ Checks for duplicate files in the folder path provided
         Once any/all duplicates have been identified, all unique images are moved to clothes_dataset/
     Args:
-        path (String) : A string of the file path to be evaluated
+        folder_path (String) : A string file path to the folder we want to check for duplicates in
         
     """
-    # Dicts to store the image ID's & pixel mean as well as their image ID's & the folder theyre contained in
-    duplicates_list = dif("clothes_dataset/", "clothes_dataset/")
-    print()
-    if duplicates_list:
-        dup_folder = "duplicates/"
-        create_folder(dup_folder)
-        # print(duplicates.lower_quality)
-        for duplicate_path in duplicates_list:
-            print(duplicate_path)
+    # Line where the folder is analysed for duplicates
+    search = dif(folder_path, folder_path)
+    # Convert the search result to a list containing all of the file paths to duplicate images in the folder
+    duplicate_list = list(search.lower_quality)
+    
+    if duplicate_list:
+        duplicate_names = [i.split("//")[1] for i in duplicate_list]
+        # Create duplicates folder
+        # dup_folder = "duplicates/"
+        # Create folder to store duplicates for testing
+        # create_folder(dup_folder)
+
+        # Remove duplicate images from the dataset folder to a duplicate folder which will be deleted 
+        for duplicate_uid in duplicate_names:
+            src_path = folder_path + duplicate_uid
+            # dest_path = src_path.replace(folder_path, "duplicates/")
+
+            try:
+                os.remove(src_path)
+                # shutil.move(src_path, dest_path)
+            except:
+                print("Couldn't move:", duplicate_name)
+
+        # if os.path.exists(dup_folder):
+        #     # removing the file using the os.remove() method
+        #     os.remove(dup_folder)
+
+    return
 
 
+def add_clothes_to_dataset(formatted_date):
 
-def add_clothes_to_dataset(new_clothes_items, formatted_date):
+    folder_path = "tmp/" + formatted_date + "/"
+    images = os.listdir(folder_path)
 
-    for item in new_clothes_items:
-        src = "tmp/" + formatted_date + "/" + item
-        # print("SRC:", src)
-        dest = "clothes_dataset/" + item
-        shutil.move(src, dest)
+    for image in images:
+        src_path = folder_path + image
+        dest_path = "clothes_dataset/" + image
+        shutil.move(src_path, dest_path)
+
+    return
 
 
 def get_images_from_wearTVC(formatted_date):
@@ -175,15 +199,9 @@ def get_images_from_wearTVC(formatted_date):
 
     # Create pixel maps for the clothes dataset and the newly scraped clothes
     new_folder = "tmp/" + formatted_date + "/"
-    # dataset_map = create_pixel_map("clothes_dataset/") 
-    # new_data_map = create_pixel_map(new_folder)
-
-    # new_clothes_items = compare_map_values(dataset_map, new_data_map)
-
-    # add_clothes_to_dataset(new_clothes_items, formatted_date)
 
 
-def get_images_from_asos_marketplace(formatted_date):
+def get_images_from_donn_clothing(formatted_date):
     # base_url = "https://marketplace.asos.com/boutique/tvc-vintage#pgno="
     base_url = "https://donnclothing.com/shop/page/"
     page_one_url = base_url + "1"
@@ -196,7 +214,6 @@ def get_images_from_asos_marketplace(formatted_date):
         page_no = str(i)
         # Need to creatr UID of PAGENUMBER_COUNTER
         scrape_images_from_page(base_url, page_no, formatted_date)
-        # scrape_images_from_page(base_url, str(i), formatted_date)
 
 
 def get_dataset_size(path):
@@ -209,30 +226,29 @@ def scrape_tvc_main():
     # Base folder that all of the clothes dataset will be stored in
     tmp_folder = "tmp/"
     clothes_dataset = "clothes_dataset/"
-    f = tmp_folder + "19_02_2022/"
-    create_folder(clothes_dataset)
-    create_folder(tmp_folder)
+    
     # Get the current date and create a folder
     today = date.today() 
     formatted_date = today.strftime("%d_%m_%Y")
     folder_name = tmp_folder + formatted_date + "/"
+
+    # Create the two folders needed for the preliminary scrapes and final dataset
+    create_folder(clothes_dataset)
+    create_folder(tmp_folder)
     create_folder(folder_name)
     
+    # Runn web scrapers
     # get_images_from_wearTVC(formatted_date)
-    # get_images_from_asos_marketplace(formatted_date)
-    # Now check if any duplicates exist in our dataset
-    # check_for_duplicates(tmp_folder)
-    # get_clothes_dataset_pixel_map(clothes_dataset)
+    # get_images_from_donn_clothing(formatted_date)
 
-    # check_for_duplicates("tmp/")
+    # Move scraped images to the clothes dataset
+    add_clothes_to_dataset(formatted_date)
 
-    
+    # Remove any duplicate images from the dataset if they exist 
+    check_for_duplicates(clothes_dataset)
+
+    # Get the size of the current dataset
     get_dataset_size(clothes_dataset)
-    get_dataset_size(f)
-
-    check_for_duplicates()
-
-    # upload_to_google_drive(folder_name)
 
 
 if __name__ == "__main__":
