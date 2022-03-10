@@ -29,6 +29,10 @@ def create_folder(folder_name):
     if not os.path.exists(folder_name):
         os.mkdir(folder_name)
 
+def delete_folder(formatted_date):
+    path = "tmp/" + formatted_date + "/"
+    shutil.rmtree(path)
+
 
 def get_last_page_number(base_url, page_class):
     # List to store all pages that we will examine
@@ -97,7 +101,6 @@ def scrape_images_from_page(base_url, page_no, date):
         # Get the folder name based on the date
         folder_name = "tmp/" + date + "/"  
         counter +=1
-        print("UID", unique_image_identifier)
         # Save the downloaded image to the created date folder
         try:
             with open(folder_name + unique_image_identifier, 'wb') as handler:
@@ -143,26 +146,17 @@ def check_for_duplicates(folder_path):
     duplicate_list = list(search.lower_quality)
     
     if duplicate_list:
-        duplicate_names = [i.split("//")[1] for i in duplicate_list]
-        # Create duplicates folder
-        # dup_folder = "duplicates/"
-        # Create folder to store duplicates for testing
-        # create_folder(dup_folder)
+        print("HERE", duplicate_list)
+        duplicate_names = [i.split("/")[2] for i in duplicate_list]
 
         # Remove duplicate images from the dataset folder to a duplicate folder which will be deleted 
         for duplicate_uid in duplicate_names:
             src_path = folder_path + duplicate_uid
-            # dest_path = src_path.replace(folder_path, "duplicates/")
-
             try:
                 os.remove(src_path)
-                # shutil.move(src_path, dest_path)
+        
             except:
-                print("Couldn't move:", duplicate_name)
-
-        # if os.path.exists(dup_folder):
-        #     # removing the file using the os.remove() method
-        #     os.remove(dup_folder)
+                print("Couldn't :", duplicate_uid)
 
     return
 
@@ -242,13 +236,15 @@ def scrape_tvc_main():
     # get_images_from_donn_clothing(formatted_date)
 
     # Move scraped images to the clothes dataset
-    add_clothes_to_dataset(formatted_date)
+    # add_clothes_to_dataset(formatted_date)
 
-    # Remove any duplicate images from the dataset if they exist 
-    check_for_duplicates(clothes_dataset)
+    # Remove any duplicate images from the dataset if they exist  clothes_dataset
+    check_for_duplicates("tmp/" + formatted_date)
 
     # Get the size of the current dataset
     get_dataset_size(clothes_dataset)
+
+    # delete_folder(formatted_date)
 
 
 if __name__ == "__main__":
