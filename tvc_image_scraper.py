@@ -64,7 +64,7 @@ def scrape_images_from_page(base_url, page_no, date):
     }
 
     # Creating the URL for each page 
-    page_url = base_url + page_no + "/"
+    page_url = base_url + str(page_no) + "/"
     # response = requests.get(page_url)
     # soup = BeautifulSoup(response.text, 'html.parser')
     # print(page_url) 
@@ -83,21 +83,23 @@ def scrape_images_from_page(base_url, page_no, date):
         if src is None:
             continue 
 
-        # # Removes the majority of logos from donnclothing.com
-        # if name == "DONN Clothing":
-        #     print("Donn Clothing Logo")
+        # Removes the majority of logos from donnclothing.com
+        if name == "DONN Clothing":
+            print("Donn Clothing Logo")
 
         # else:
         #     print("SRC", src)
         #     print("name", name)
 
         # Clean the image URL so that it can used to download the image
-        image_url = 'https:' + src.strip().split("?")[0]
-        # image_url = src.strip().split("?")[0]
+        if 'https:' not in src:
+            image_url = 'https:' + src.strip().split("?")[0]
+        else:
+            image_url = src.strip().split("?")[0]
         # Download the image
         img_data = requests.get(image_url).content
         # Creating a unique image identifier:  <<name>>_<<page_number>>_<<counter>>_<<date>>
-        unique_image_identifier  = name.replace(" ", "_").lower() + "_" + page_no.replace("/", "") + "_" + str(counter) + "_" + date + ".jpg"
+        unique_image_identifier  = name.replace(" ", "_").lower() + "_" + str(page_no).replace("/", "") + "_" + str(counter) + "_" + date + ".jpg"
         # Get the folder name based on the date
         folder_name = "tmp/" + date + "/"  
         counter +=1
@@ -209,6 +211,20 @@ def get_images_from_donn_clothing(formatted_date):
         # Need to creatr UID of PAGENUMBER_COUNTER
         scrape_images_from_page(base_url, page_no, formatted_date)
 
+def scrape_tola_vintage(formatted_date):
+    base_url = "https://www.tolavintage.com/men/?product-page="
+    for page_no in range(1, 30):
+        scrape_images_from_page(base_url, page_no, formatted_date)
+
+
+def rename(formatted_date):
+    path = "tmp/" + formatted_date + "/"
+    images = os.listdir(path)
+    for index, image_name in enumerate(images):
+        src = path + image_name
+        dest = path + "tola_vintage_" + str(index) + "_" + formatted_date + ".jpg"
+        os.rename(src, dest)
+
 
 def get_dataset_size(path):
     img_count = len(os.listdir(path))
@@ -234,12 +250,14 @@ def scrape_tvc_main():
     # Runn web scrapers
     # get_images_from_wearTVC(formatted_date)
     # get_images_from_donn_clothing(formatted_date)
-
-    # Move scraped images to the clothes dataset
-    # add_clothes_to_dataset(formatted_date)
+    # scrape_tola_vintage(formatted_date)
 
     # Remove any duplicate images from the dataset if they exist  clothes_dataset
-    check_for_duplicates("tmp/" + formatted_date)
+    # check_for_duplicates("tmp/" + formatted_date)
+
+    # rename(formatted_date)
+    # Move scraped images to the clothes dataset
+    # add_clothes_to_dataset(formatted_date)
 
     # Get the size of the current dataset
     get_dataset_size(clothes_dataset)

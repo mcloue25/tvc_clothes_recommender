@@ -7,6 +7,7 @@ import requests
 
 from selenium import webdriver 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
 
 ### GUIDE for getting the URL's ###
 # https://www.youtube.com/watch?v=sMve66iaVQo
@@ -17,21 +18,30 @@ from selenium.webdriver.common.by import By
 
 
 def get_images_selenium(url):
+    options = Options()
+    options.headless = True
     browser = webdriver.Chrome("C:/Users/eoinm/Drivers/chromedriver")
+    # browser = webdriver.Chrome("C:/Users/eoinm/Drivers/chromedriver", options=options)
     browser.get(url)
     request = requests.get(url)
     # Create a BeautifulSoup Object
     soup = bs.BeautifulSoup(request.text, "lxml")
 
-    for image in soup.findAll('img'):
-        # Get the image data-src and name
-        src = image.get('src', image.get('dfr-src'))
-        name = image.get('alt', image.get('alt'))
-        # Check if there is a source
-        if src is None:
-            continue 
+    accept_button = browser.find_element(By.XPATH, '//*[@id="content"]/html/body/div/div/div[2]/div[2]/button[2]')
+    more_button.click()
 
-        print("Name:", name)
+    browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+    for image in soup.findAll('img'):
+        print(image)
+    #     # Get the image data-src and name
+    #     src = image.get('src', image.get('dfr-src'))
+    #     name = image.get('alt', image.get('alt'))
+    #     # Check if there is a source
+    #     if src is None:
+    #         continue 
+
+    #     print("Name:", name)
 
         
 
