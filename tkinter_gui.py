@@ -4,6 +4,9 @@ import cv2
 import tkinter as tk
 import tkinter.filedialog
 
+import os.path
+from os import path
+
 from tkinter import *
 from tkvideo import tkvideo
 from PIL import Image, ImageTk
@@ -33,16 +36,16 @@ class DataProcessingTool:
         self.master = master
         master.title("MoveAhead Data Processing Tool")
 
-        # Load MoveAhead Logo into GUI
-        image = Image.open("moveahead_logo.png")
-        image = Image.open(get_path("moveahead_logo.png"))
-        image = image.resize((150, 40), Image.ANTIALIAS)
+        # # Load MoveAhead Logo into GUI
+        # image = Image.open("moveahead_logo.png")
+        # image = Image.open(get_path("moveahead_logo.png"))
+        # image = image.resize((150, 40), Image.ANTIALIAS)
 
-        logo = ImageTk.PhotoImage(image)
+        # logo = ImageTk.PhotoImage(image)
 
-        self.label = tk.Label(master, image=logo)
-        self.label.photo = logo
-        self.label.pack()
+        # self.label = tk.Label(master, image=logo)
+        # self.label.photo = logo
+        # self.label.pack()
 
         # Class variables
         self.start_date = None
@@ -81,18 +84,36 @@ class DataProcessingTool:
 
     def process_folder(self):
 
+        dset_path = os.listdir("clothes_dataset/")
+
+        def get_results_file():
+            if path.exists("results.json"):
+                log = import_json("results.json")
+            else:
+                log = {}
+
+            return log
+
+        self.log = get_results_file()
+
         for image_name in os.listdir(self.folder_path):
             img_path = self.folder_path + "/" + image_name
-            self.temp_video_gui(img_path, image_name)
+            if image_name in dset_path:
+                t = self.temp_video_gui(img_path, image_name)
+                print(t)
+            
+                # print(image_name)
 
         # Close GUI once uploads have been completed.
         self.master.destroy()
 
 
-    def temp_video_gui(self, output_path, image_name):
+    def temp_video_gui(selff, output_path, image_name):
 
         # Initialize second GUI to handle video annotation and processing (tk.Toplevel since another GUI instance is already running)
         temp_gui = tk.Toplevel()
+        drip = False
+        test = selff.master
 
         pad = 3
         temp_gui.geometry("{0}x{1}+0+0".format(temp_gui.winfo_screenwidth()-pad, temp_gui.winfo_screenheight()-pad))
@@ -100,43 +121,68 @@ class DataProcessingTool:
         temp_gui.resizable(0, 0)
         temp_gui.title(image_name) 
 
-        # Load Dataset Image into GUI
-        dataset_image = Image.open(output_path)
-        
-        # Get image dimensions
-        img = cv2.imread(output_path)
-        img_height, img_width, _ = img.shape
-        screen_width = GetSystemMetrics(0)
-        screen_height = GetSystemMetrics(1)
+        try:
+            # Load Dataset Image into GUI
+            dataset_image = Image.open(output_path)
+                
+                # Get image dimensions
+            img = cv2.imread(output_path)
+            img_height, img_width, _ = img.shape
+            screen_width = GetSystemMetrics(0)
+            screen_height = GetSystemMetrics(1)
 
-        # Get ratio of image height to screen height 
-        ratio = screen_height / img_height 
+                # Get ratio of image height to screen height 
+            ratio = screen_height / img_height 
 
-        dataset_image = dataset_image.resize(( int(img_width * ratio), int(img_height * ratio)), Image.ANTIALIAS)
-        tk_dataset_img = ImageTk.PhotoImage(dataset_image)
+            dataset_image = dataset_image.resize(( int(img_width * ratio), int(img_height * ratio)), Image.ANTIALIAS)
+            tk_dataset_img = ImageTk.PhotoImage(dataset_image)
 
-        # Create canvas to display image
-        canvas = Canvas(temp_gui, width = GetSystemMetrics(0), height = GetSystemMetrics(1))  
-        canvas.pack()
-        canvas.create_image(20, 20, anchor=NW, image= tk_dataset_img)  
+                # Create canvas to display image
+            canvas = Canvas(temp_gui, width = GetSystemMetrics(0), height = GetSystemMetrics(1))  
+            canvas.pack()
+            canvas.create_image(20, 20, anchor=NW, image= tk_dataset_img)  
 
-        l2 = tk.Label(temp_gui, text="ID: {}".format(image_name), font=("Arial", 20))
-        l2.place(x=800, y=120)
+            l2 = tk.Label(temp_gui, text="ID: {}".format(image_name), font=("Arial", 20))
+            l2.place(x=800, y=120)
+
+            def create_folder(folder_name):
+                # used to create folders
+                if not os.path.exists(folder_name):
+                    os.mkdir(folder_name)
+
+                return
+
+            def move_image(folder_name):
+                dest_path = folder_name + image_name
+                # print("Moving to:", dest_path)
 
 
-        def leftKey(event):
-            print("Left key pressed")
+            def leftKey(event):
+                create_folder("labelled_dataset/not_drip/")
+                move_image("labelled_dataset/not_drip/")
+                print("LEFT:", image_name)
+                temp_gui.destroy()
 
-        def rightKey(event):
-            print("Right key pressed")
+            def rightKey(event):
+                create_folder("labelled_dataset/drip/")
+                move_image("labelled_dataset/drip/")
+                print("RIGHT", image_name)
+                drip = True
+                print(drip)
+                temp_gui.destroy()
 
-        frame = Frame(temp_gui, width=500, height=500)
-        temp_gui.bind('<Left>', leftKey)
-        temp_gui.bind('<Right>', rightKey)
-        frame.pack()
+            create_folder("labelled_dataset/")
+            frame = Frame(test, width=500, height=500)
+            test.bind('<Left>', leftKey)
+            test.bind('<Right>', rightKey)
+            frame.pack()
 
-        # Wait until the window is closed to open the next
-        temp_gui.wait_window()
+                # Wait until the window is closed to open the next
+            temp_gui.wait_window()
+            return drip
+
+        except:
+            temp_gui.destroy()
     
 
 def main():
