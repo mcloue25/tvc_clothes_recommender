@@ -112,7 +112,6 @@ class DataProcessingTool:
 
         # Initialize second GUI to handle video annotation and processing (tk.Toplevel since another GUI instance is already running)
         temp_gui = tk.Toplevel()
-        drip = False
         test = selff.master
 
         pad = 3
@@ -173,6 +172,7 @@ class DataProcessingTool:
 
             create_folder("labelled_dataset/")
             frame = Frame(test, width=500, height=500)
+            drip = False
             test.bind('<Left>', leftKey)
             test.bind('<Right>', rightKey)
             frame.pack()
