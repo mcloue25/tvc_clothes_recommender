@@ -86,7 +86,6 @@ class DataProcessingTool:
             else:
                 logged_results = {} 
 
-            print("HERE:", drip_map)
             merged_logs = {**drip_map, **logged_results}
 
             with open("results.json", mode='w+') as json_file:
@@ -103,18 +102,27 @@ class DataProcessingTool:
 
     def process_folder(self):
 
-        # def get_results_file():
-        #     if path.exists("results.json"):
-        #         log = import_json("results.json")
-        #     else:
-        #         log = {}
+        def import_json(json_path):
+            with open(json_path, "r") as f:
+                json_data = json.load(f)
 
-        #     return log
+            return json_data
 
-        # self.log = get_results_file()
+        def get_results_file():
+            if path.exists("results.json"):
+                log = import_json("results.json")
+            else:
+                log = {}
+
+            return log
+
+        self.log = get_results_file()
+        prev_assessed_clothes = list(self.log.keys())
+
         dset_path = os.listdir("clothes_dataset/")
+        remaining_clothes = [x for x in os.listdir(self.folder_path) if x not in self.log.keys()]
 
-        for image_name in os.listdir(self.folder_path):
+        for image_name in remaining_clothes:
             img_path = self.folder_path + "/" + image_name
             if image_name in dset_path:
                 self.temp_video_gui(img_path, image_name)
