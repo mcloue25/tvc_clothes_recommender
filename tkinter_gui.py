@@ -2,11 +2,13 @@ import os
 import sys
 import cv2
 import json
+import shutil
 import tkinter as tk
 import tkinter.filedialog
 
 import os.path
 from os import path
+from collections import OrderedDict
 
 from tkinter import *
 from tkvideo import tkvideo
@@ -44,6 +46,22 @@ class DataProcessingTool:
 
         self.save_drip_map_button = tk.Button(master, text="Save Results", command=self.save_json)
         self.save_drip_map_button.place(x=5, y=80)
+
+        # self.get_map_size = tk.Button(master, text="Get Size", command=self.get_map_size)
+        # self.get_map_size.place(x=5, y=200)
+
+        # self.print_image_sizes = tk.Button(master, text="Resize images", command=self.resize_images)
+        # self.print_image_sizes.place(x=5, y=230)
+
+    def get_map_size(self):
+        json_path = "results.json"
+        with open(json_path, "r") as f:
+            json_data = json.load(f)
+            len_results = len(json_data.keys())
+            print("Size:", len_results)
+
+
+
 
     def select_folder(self):
         folder_path = tk.filedialog.askdirectory()
@@ -108,6 +126,24 @@ class DataProcessingTool:
 
             return json_data
 
+        def add_results(drip_map, exists):
+            if exists:
+                logged_results = import_json("results.json")
+            else:
+                logged_results = {} 
+
+            merged_logs = {**drip_map, **logged_results}
+
+            with open("results.json", mode='w+') as json_file:
+                json.dump(merged_logs, json_file)
+
+            return
+
+        if path.exists("results.json"):
+            add_results(self.drip_map, True)
+        else:
+            add_results(self.drip_map, False)
+
         def get_results_file():
             if path.exists("results.json"):
                 log = import_json("results.json")
@@ -117,15 +153,16 @@ class DataProcessingTool:
             return log
 
         self.log = get_results_file()
-        prev_assessed_clothes = list(self.log.keys())
 
         dset_path = os.listdir("clothes_dataset/")
         remaining_clothes = [x for x in os.listdir(self.folder_path) if x not in self.log.keys()]
-
+        
         for image_name in remaining_clothes:
-            img_path = self.folder_path + "/" + image_name
             if image_name in dset_path:
+                img_path = self.folder_path + "/" + image_name
                 self.temp_video_gui(img_path, image_name)
+
+        add_results(self.drip_map, True)
 
         # Close GUI once uploads have been completed.
         self.master.destroy()
@@ -157,6 +194,7 @@ class DataProcessingTool:
 
             # Get ratio of image height to screen height 
             ratio = screen_height / img_height 
+            # ratio = 1
 
             dataset_image = dataset_image.resize(( int(img_width * ratio), int(img_height * ratio)), Image.ANTIALIAS)
             tk_dataset_img = ImageTk.PhotoImage(dataset_image)
@@ -177,7 +215,7 @@ class DataProcessingTool:
 
             def rightKey(event):
                 selff.drip_map[image_name] = "drip"
-                print(selff.drip_map)
+                # print(selff.drip_map)
                 temp_gui.destroy()
 
             frame = Frame(selff.master, width=500, height=500)

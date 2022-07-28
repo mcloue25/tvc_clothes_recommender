@@ -8,7 +8,7 @@ import requests
 from difPy import dif
 from datetime import date
 from bs4 import BeautifulSoup
-from PIL import Image, ImageStat
+from PIL import Image
 
 # from pydrive.auth import GoogleAuth
 # from pydrive.drive import GoogleDrive
@@ -163,8 +163,54 @@ def check_for_duplicates(folder_path):
     return
 
 
-def add_clothes_to_dataset(formatted_date):
+def build_dataset_of_clothes(self):
+    create_folder("dataset_no_shop_icons/")
+    sizes = os.listdir("sizes/")
+    for size_folder in sizes:
+        folder_path = "sizes/" + size_folder + "/"
+        for image in os.listdir(folder_path):
+            src = folder_path + image
+            dest = "dataset_no_shop_icons/" + image 
+            print(src, dest)
+            shutil.copyfile(src, dest)
 
+
+def print_image_sizes():
+    """ Used for displaying the varying images sizes collected within the dataset as well as splitting them based on size
+    """
+    create_folder("sizes/")
+    folder_path = "clothes_dataset/"
+    dset_path = os.listdir(folder_path)
+
+    sizes = {}
+    for image_name in dset_path:
+        img_path = folder_path + "/" + image_name
+        # Get image dimensions
+        img = cv2.imread(img_path)
+        try:
+            img_height, img_width, _ = img.shape
+            folder_name = "sizes/{}_{}/".format(img_height, img_width)
+            dest = folder_name + image_name
+
+            if img_height in sizes and sizes[img_height] == img_width:
+                shutil.copyfile(img_path, dest)
+                continue
+            else:
+                create_folder(folder_name)
+                shutil.copyfile(img_path, dest)
+                sizes[img_height] = img_width
+        except:
+            continue
+
+    # Print the ordered sizes
+    ordered_sizes = OrderedDict(sorted(sizes.items(), key=lambda t: t[0]))
+    for k, v in ordered_sizes.items():
+        print(k, v)
+
+
+def add_clothes_to_dataset(formatted_date):
+    """ Copies all images in a folder to the clothes_dataset folder
+    """
     folder_path = "tmp/" + formatted_date + "/"
     images = os.listdir(folder_path)
 
@@ -176,12 +222,8 @@ def add_clothes_to_dataset(formatted_date):
     return
 
 
-def get_images_from_wearTVC(formatted_date):
-    """ Creates a segmented video using the frame indexes provided in frames
-    Args
-        parent_frame_folder_path (String) : A string indicating the parent folder of all frames Eg. "video_frames/<<video_name>>/"
-    Returns:
-        parent_frame_folder_path (String) : A string indicating the parent folder of all frames Eg. "video_frames/<<video_name>>/"
+def scrape_wearTVC(formatted_date):
+    """ Scrapes images from TVC Vintage
     """
     # Hard code way of collecting the last number in the list 
     base_url = 'https://wearetvc.com/collections/all?page='
@@ -197,71 +239,105 @@ def get_images_from_wearTVC(formatted_date):
     new_folder = "tmp/" + formatted_date + "/"
 
 
-def get_images_from_donn_clothing(formatted_date):
+def scrape_donn_clothing(formatted_date):
+    """ Used to scrape images from Donn Clothing
+    """
     # base_url = "https://marketplace.asos.com/boutique/tvc-vintage#pgno="
     base_url = "https://donnclothing.com/shop/page/"
     page_one_url = base_url + "1"
     # Find out how many pages we have to iterate over
     page_class = 'nav'
     # total_pages = get_last_page_number(page_one_url, page_class)
-    total_pages = 14
+    total_pages = 11
     # Iterate through each page and save images to tmp folder 
     for i in range(1, total_pages):
         page_no = str(i)
         # Need to creatr UID of PAGENUMBER_COUNTER
         scrape_images_from_page(base_url, page_no, formatted_date)
 
+
 def scrape_tola_vintage(formatted_date):
+    """ Used to scrape images from Tola Vintage
+    """
     base_url = "https://www.tolavintage.com/men/?product-page="
     for page_no in range(1, 30):
         scrape_images_from_page(base_url, page_no, formatted_date)
 
+    # Rename items to have tola_vintage in their ID
+    rename_tola_clothes(formatted_date)
 
-def rename(formatted_date):
-    path = "tmp/" + formatted_date + "/"
-    images = os.listdir(path)
+
+def rename_tola_clothes(formatted_date):
+    """ Used to prefix each item scraped from tola vintage with the name "toal_vintage_<<UID>>"
+
+
+    """
+    folder_path = "tmp/" + formatted_date + "/"
+    images = os.listdir(folder_path)
     for index, image_name in enumerate(images):
         src = path + image_name
         dest = path + "tola_vintage_" + str(index) + "_" + formatted_date + ".jpg"
         os.rename(src, dest)
 
+    return
+
 
 def get_dataset_size(path):
+    """ Used to get the current number of item contained in the <<path>> folder
+    """
     img_count = len(os.listdir(path))
+    print("The current size of the dataset is", str(img_count))
+    return
 
-    print("The current size of the dataset is", img_count)
+
+def resize_images():
+    dset_path = "dataset_no_shop_icons/"
+    for image_name in os.listdir(dset_path):
+        img_path = dset_path + image_name
+        image = Image.open(img_path)
 
 
-def scrape_tvc_main():
-    # Base folder that all of the clothes dataset will be stored in
-    tmp_folder = "tmp/"
-    clothes_dataset = "clothes_dataset/"
-    
-    # Get the current date and create a folder
-    today = date.today() 
-    formatted_date = today.strftime("%d_%m_%Y")
-    folder_name = tmp_folder + formatted_date + "/"
+def run_scrapers(formatted_date, folder_name):
 
     # Create the two folders needed for the preliminary scrapes and final dataset
-    create_folder(clothes_dataset)
-    create_folder(tmp_folder)
+    # create_folder("clothes_dataset/")
+    create_folder("tmp/")
     create_folder(folder_name)
     
-    # Runn web scrapers
-    # get_images_from_wearTVC(formatted_date)
-    # get_images_from_donn_clothing(formatted_date)
+    # Run web scrapers
+    # scrape_wearTVC(formatted_date)
+    scrape_donn_clothing(formatted_date)
     # scrape_tola_vintage(formatted_date)
 
     # Remove any duplicate images from the dataset if they exist  clothes_dataset
-    # check_for_duplicates("tmp/" + formatted_date)
+    check_for_duplicates("tmp/" + formatted_date)
 
-    # rename(formatted_date)
     # Move scraped images to the clothes dataset
     # add_clothes_to_dataset(formatted_date)
 
-    # Get the size of the current dataset
-    get_dataset_size(clothes_dataset)
+    return
 
+def get_date():
+    # Get the current date and create a folder
+    today = date.today() 
+    formatted_date = today.strftime("%d_%m_%Y")
+    
+    return formatted_date
+
+def scrape_tvc_main():
+    
+    formatted_date = get_date()
+    folder_name = "tmp/" + formatted_date + "/"
+
+    clothes_dataset = "clothes_dataset/"
+    # check_for_duplicates(clothes_dataset)
+
+    run_scrapers(formatted_date, folder_name)
+
+    # Get the size of the current dataset
+    # get_dataset_size(clothes_dataset)
+
+    # resize_images()
     # delete_folder(formatted_date)
 
 
