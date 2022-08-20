@@ -117,22 +117,22 @@ def scrape_images_from_page(base_url, page_no, date):
 
 
 
-def scrape_all_clothes_images(base_url, page_no, date):
-    """
-        need to get all hrefs inside div products producrs-grid
-        get the name of the clothes in each box as well as the href 
-        follow that href and then use the original scrape_images() to get all angles of each clothes item 
-        save these images to tmp/date/item_name/<< HERE >>
+# def scrape_all_clothes_images(base_url, page_no, date):
+#     """
+#         need to get all hrefs inside div products producrs-grid
+#         get the name of the clothes in each box as well as the href 
+#         follow that href and then use the original scrape_images() to get all angles of each clothes item 
+#         save these images to tmp/date/item_name/<< HERE >>
 
-    """
-    page_url = base_url + str(page_no)
-    response = requests.get(page_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    # List to store all product ID's on the page 
+#     """
+#     page_url = base_url + str(page_no)
+#     response = requests.get(page_url)
+#     soup = BeautifulSoup(response.text, 'html.parser')
+#     # List to store all product ID's on the page 
 
-    divTag = soup.find_all("div", {"class": "product product-grid"})
-    # Collect all images from the page
-    # for image in soup.findAll('img'):
+#     divTag = soup.find_all("div", {"class": "product product-grid"})
+#     # Collect all images from the page
+#     # for image in soup.findAll('img'):
 
 
 def check_for_duplicates(folder_path):
