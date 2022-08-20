@@ -9,18 +9,40 @@ import matplotlib.pyplot  as plt
 
 clothes_types = {'coat': ["coat"]}
 
+clothes = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
+
+
+# def create_test_dataset(largest_subset_df, dataset_path, test_folder_path):
+#     """
+#     """
+#     create_folder(test_folder_path)
+#     for image_name in largest_subset_df.index:
+#         src_path = dataset_path + image_name
+#         dest_path = test_folder_path + image_name
+
+#         print(src_path)
+#         if os.path.isfile(src_path):
+#             shutil.copyfile(src_path, dest_path)
+
+    
+
+# def get_dataset_pc_classified(json_path, dataset_path):
+#     ''' Checks whats precentage of the dataset has been classified
+#     '''
+#     json_data = import_json(json_path)
+
+#     ids = list(json_data.keys())
+#     class_results = list(json_data.values())
+#     dataset_size = len(ids)
+
+#     # Calculate % of dataset thats been completed 
+#     print("Current length =", dataset_size - 1)
+#     print("% Done:", 100 * (dataset_size/len(os.listdir(dataset_path))))
+
 
 def create_folder(folder_name):
     if not os.path.exists(folder_name):
         os.mkdir(folder_name)
-
-
-def get_metadata_df(path):
-    ''' Used to read in a csv path and return the dataframe
-    '''
-    df = pd.read_csv(path, delimiter=',', sep=r', ')
-    df.set_index("id", inplace=True)
-    return df
 
 
 def create_csv(df, path, name):
@@ -69,6 +91,15 @@ def build_img_df(folder_path, json_path):
     
     return img_df
 
+
+def get_metadata_df(path):
+    ''' Used to read in a csv path and return the dataframe
+    '''
+    df = pd.read_csv(path, delimiter=',', sep=r', ')
+    df.set_index("id", inplace=True)
+    return df
+
+
 def create_height_width_groups(df):
     ''' Groups the img data based on image height & width so that we can begin experimenting with the largest subset of images
     Args:
@@ -96,41 +127,19 @@ def segmment_dataset_by_img_dims(metadata_df, grouped_df):
         subset_df = metadata_df.loc[metadata_df['height_width_dims'] == height_width]
         path = size_path + height_width + '.csv'
         create_csv(subset_df, size_path, height_width + '.csv')
-    
 
-# def get_dataset_pc_classified(json_path, dataset_path):
-#     ''' Checks whats precentage of the dataset has been classified
-#     '''
-#     json_data = import_json(json_path)
-
-#     ids = list(json_data.keys())
-#     class_results = list(json_data.values())
-#     dataset_size = len(ids)
-
-#     # Calculate % of dataset thats been completed 
-#     print("Current length =", dataset_size - 1)
-#     print("% Done:", 100 * (dataset_size/len(os.listdir(dataset_path))))
 
 
 def calculate_clothes_type(df):
     ''' Used for calculating what % of the dataset is made up of each clothes type
     '''
     named_df = df.loc[~(df.index.str.startswith('_'))]
-    print(named_df)
-    a-b
+    pattern = '|'.join(clothes)
+    named_df['clothes_type'] = named_df.index.str.contains(pattern)
+    named_pc_df = named_df['clothes_type'].value_counts(normalize=True).mul(100).astype(str)+'%'
 
-
-def create_test_dataset(largest_subset_df, dataset_path, test_folder_path):
-    """
-    """
-    create_folder(test_folder_path)
-    for image_name in largest_subset_df.index:
-        src_path = dataset_path + image_name
-        dest_path = test_folder_path + image_name
-
-        print(src_path)
-        if os.path.isfile(src_path):
-            shutil.copyfile(src_path, dest_path)
+    return named_pc_df
+    
 
 
 def get_class_distribution(df):
@@ -187,7 +196,7 @@ def main():
     df = get_metadata_df(path)
 
     # Will be used for getting analytics as to what portion of of our dataset if made up of each clothes type
-    calculate_clothes_type(df)
+    named_pc_df = calculate_clothes_type(df)
 
     # Calculates what percentage of the dataset has been given a classification 
     # get_dataset_pc_classified(json_path, dataset_path)
