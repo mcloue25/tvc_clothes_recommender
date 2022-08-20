@@ -12,20 +12,6 @@ from PIL import Image
 clothes_types = {'coat': ["coat"]}
 
 clothes = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
-
-
-# def create_test_dataset(largest_subset_df, dataset_path, test_folder_path):
-#     """
-#     """
-#     create_folder(test_folder_path)
-#     for image_name in largest_subset_df.index:
-#         src_path = dataset_path + image_name
-#         dest_path = test_folder_path + image_name
-
-#         print(src_path)
-#         if os.path.isfile(src_path):
-#             shutil.copyfile(src_path, dest_path)
-
     
 
 # def get_dataset_pc_classified(json_path, dataset_path):
@@ -65,10 +51,10 @@ def import_json(json_path):
 
 
 def build_img_df(folder_path, json_path):
-    """ Used to collect metadata on each image in the dataset
+    ''' Used to collect metadata on each image in the dataset
     Args:
         folder_path (String) : A String storing the path to the folder containing the image dataset
-    """
+    '''
     img_data = []
 
     json_data = import_json(json_path)
@@ -186,9 +172,7 @@ def create_resized_dataset(df, subset_df):
     ''' reduce image size down to 300 x 300 and keep image qulity 
         LINK: https://www.holisticseo.digital/python-seo/image-optimization/
     '''
-    # Create resized dataset folder
     create_folder('resized_dataset/')
-
     df.reset_index(inplace=True)
     subset_df.reset_index(inplace=True)
     height = int(subset_df.at[0, 'img_height'])
@@ -198,18 +182,23 @@ def create_resized_dataset(df, subset_df):
     merged_df = df.merge(subset_df.drop_duplicates(), on=['id','id'], how='left', indicator=True)
     images_to_resize_df = merged_df.loc[(merged_df._merge == 'left_only')]
 
+    # Create resized image dataset
     resize_images(images_to_resize_df, height, width)
-    move_subset_images(subset_df)
+    move_subset_images(subset_df, 'clothes_dataset/', 'resized_dataset/')
 
 
-def move_subset_images(df):
+def move_subset_images(df, src_folder, dest_folder):
+    ''' Generic function used for moving images
+    '''
     for item in df['id']:
-        src_path = 'clothes_dataset/' + item
-        dest_path = 'resized_dataset/' + item
+        src_path = src_folder + item
+        dest_path = dest_folder + item
         shutil.copy(src_path, dest_path)
 
 
 def resize_images(df, height, width):
+    ''' Resizes images & convert back to RGB to be saved as JPEG's
+    '''
     for item in df['id']:
         src_path = 'clothes_dataset/' + item
         image = Image.open(src_path)
@@ -218,6 +207,25 @@ def resize_images(df, height, width):
 
         rgb_im = resized_image.convert('RGB')
         rgb_im.save(dest_path)
+
+
+def split_dataset(df):
+    ''' Used for organizing the dataset to be trained 
+        Link: https://www.tensorflow.org/tutorials/images/classification
+    '''
+    # Create final class folders needed for training
+    create_folder('final_dataset/')
+    create_folder('final_dataset/drip/')
+    create_folder('final_dataset/not_drip/')
+
+    # Split DF into individual class DF's
+    df.reset_index(inplace=True)
+    drip_df = df.loc[(df['class'] == 'drip')]
+    not_drip_df = df.loc[df['class'] == 'not_drip']
+
+    # Move each image to its respective class folder
+    move_subset_images(drip_df, 'resized_dataset/', 'final_dataset/drip/')
+    move_subset_images(not_drip_df, 'resized_dataset/', 'final_dataset/not_drip/')
 
 
 def main():
@@ -241,9 +249,11 @@ def main():
     # Calculates what percentage of the dataset has been given a classification 
     # get_dataset_pc_classified(json_path, dataset_path)
 
-    grouped_df, largest_subset_df = create_height_width_groups(df)
+    # grouped_df, largest_subset_df = create_height_width_groups(df)
 
-    create_resized_dataset(df, largest_subset_df)
+    # create_resized_dataset(df, largest_subset_df)
+
+    split_dataset(df)
 
     # # Create seperate csv's for each height_width subset
     # segmment_dataset_by_img_dims(df, grouped_df)
