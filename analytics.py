@@ -186,31 +186,38 @@ def create_resized_dataset(df, subset_df):
     ''' reduce image size down to 300 x 300 and keep image qulity 
         LINK: https://www.holisticseo.digital/python-seo/image-optimization/
     '''
+    # Create resized dataset folder
+    create_folder('resized_dataset/')
+
     df.reset_index(inplace=True)
     subset_df.reset_index(inplace=True)
-    print(subset_df)
-    resize_height = int(subset_df.at[0, 'img_height'])
-    resize_width = int(subset_df.at[0,'img_width'])
+    height = int(subset_df.at[0, 'img_height'])
+    width = int(subset_df.at[0,'img_width'])
 
+    # Split DF on height x width dimensions
     merged_df = df.merge(subset_df.drop_duplicates(), on=['id','id'], how='left', indicator=True)
     images_to_resize_df = merged_df.loc[(merged_df._merge == 'left_only')]
 
-    resize_folder = 'resized_dataset/'
-    create_folder(resize_folder)
-    for item in images_to_resize_df['id']:
+    resize_images(images_to_resize_df, height, width)
+    move_subset_images(subset_df)
+
+
+def move_subset_images(df):
+    for item in df['id']:
+        src_path = 'clothes_dataset/' + item
+        dest_path = 'resized_dataset/' + item
+        shutil.copy(src_path, dest_path)
+
+
+def resize_images(df, height, width):
+    for item in df['id']:
         src_path = 'clothes_dataset/' + item
         image = Image.open(src_path)
-        resized_image = image.resize((resize_width,resize_height), resample=1)
-        dest_path = resize_folder + item
+        resized_image = image.resize((width, height), resample=1)
+        dest_path = 'resized_dataset/' + item
 
         rgb_im = resized_image.convert('RGB')
         rgb_im.save(dest_path)
-
-        # resized_image.save(dest_path)
-
-
-
-    # print(images_to_resize_df.columns)
 
 
 def main():
@@ -223,13 +230,13 @@ def main():
     dataset_path = "clothes_dataset/"
 
     # Create metadata DF from results.json
-    # metadata_df = build_img_df(dataset_path, json_path)
+    # df = build_img_df(dataset_path, json_path)
 
     # Load the image metadata DataFrame if its been created previously
     df = get_metadata_df(path)
 
     # Will be used for getting analytics as to what portion of of our dataset if made up of each clothes type
-    named_pc_df = calculate_clothes_type(df)
+    # named_pc_df = calculate_clothes_type(df)
 
     # Calculates what percentage of the dataset has been given a classification 
     # get_dataset_pc_classified(json_path, dataset_path)
@@ -244,18 +251,10 @@ def main():
     # # Examine class distribution within dataset
     # class_df = get_class_distribution(df)
 
-
-    # test_set = "test_set/"
-    # test_folder_path = test_set  + dataset_path  
-    # create_folder(test_set)
-    # create_folder(test_folder_path)
-    # testset_results = get_test_set_results(largest_subset_df, json_path)
-    # create_test_dataset(largest_subset_df, dataset_path, test_folder_path)
-
-    print("LENGTH OF SET:", len(os.listdir(test_folder_path)))
+    # print("LENGTH OF SET:", len(os.listdir(test_folder_path)))
 
     # Plot the different image dimensions as a scatter plot to see level of disparity & bar chart for volume
-    visualise_img_metadata(df, grouped_df)
+    # visualise_img_metadata(df, grouped_df)
 
 if __name__ == "__main__":
     main()
