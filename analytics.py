@@ -7,6 +7,8 @@ import os.path
 import pandas as pd
 import matplotlib.pyplot  as plt
 
+from PIL import Image
+
 clothes_types = {'coat': ["coat"]}
 
 clothes = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
@@ -155,7 +157,7 @@ def visualise_img_metadata(df, grouped_df):
     ''' Used for plotting the varying sizes of images ocntained in the dataset
     '''
     # show_scatter_plot(df)
-    plot_hist(grouped_df)
+    # plot_hist(grouped_df)
 
     return
 
@@ -178,6 +180,37 @@ def plot_hist(df):
     '''
     ax = df.plot.bar(x = "img_height_width", y = "size", alpha=0.5)
     plt.show()
+
+
+def create_resized_dataset(df, subset_df):
+    ''' reduce image size down to 300 x 300 and keep image qulity 
+        LINK: https://www.holisticseo.digital/python-seo/image-optimization/
+    '''
+    df.reset_index(inplace=True)
+    subset_df.reset_index(inplace=True)
+    print(subset_df)
+    resize_height = int(subset_df.at[0, 'img_height'])
+    resize_width = int(subset_df.at[0,'img_width'])
+
+    merged_df = df.merge(subset_df.drop_duplicates(), on=['id','id'], how='left', indicator=True)
+    images_to_resize_df = merged_df.loc[(merged_df._merge == 'left_only')]
+
+    resize_folder = 'resized_dataset/'
+    create_folder(resize_folder)
+    for item in images_to_resize_df['id']:
+        src_path = 'clothes_dataset/' + item
+        image = Image.open(src_path)
+        resized_image = image.resize((resize_width,resize_height), resample=1)
+        dest_path = resize_folder + item
+
+        rgb_im = resized_image.convert('RGB')
+        rgb_im.save(dest_path)
+
+        # resized_image.save(dest_path)
+
+
+
+    # print(images_to_resize_df.columns)
 
 
 def main():
@@ -203,11 +236,13 @@ def main():
 
     grouped_df, largest_subset_df = create_height_width_groups(df)
 
-    # Create seperate csv's for each height_width subset
-    segmment_dataset_by_img_dims(df, grouped_df)
+    create_resized_dataset(df, largest_subset_df)
 
-    # Examine class distribution within dataset
-    class_df = get_class_distribution(df)
+    # # Create seperate csv's for each height_width subset
+    # segmment_dataset_by_img_dims(df, grouped_df)
+
+    # # Examine class distribution within dataset
+    # class_df = get_class_distribution(df)
 
 
     # test_set = "test_set/"
