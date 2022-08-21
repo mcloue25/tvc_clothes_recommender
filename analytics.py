@@ -214,9 +214,9 @@ def split_dataset(df):
         Link: https://www.tensorflow.org/tutorials/images/classification
     '''
     # Create final class folders needed for training
-    create_folder('final_dataset/')
-    create_folder('final_dataset/drip/')
-    create_folder('final_dataset/not_drip/')
+    create_folder('labelled_dataset/')
+    create_folder('labelled_dataset/drip/')
+    create_folder('labelled_dataset/not_drip/')
 
     # Split DF into individual class DF's
     df.reset_index(inplace=True)
@@ -224,8 +224,8 @@ def split_dataset(df):
     not_drip_df = df.loc[df['class'] == 'not_drip']
 
     # Move each image to its respective class folder
-    move_subset_images(drip_df, 'resized_dataset/', 'final_dataset/drip/')
-    move_subset_images(not_drip_df, 'resized_dataset/', 'final_dataset/not_drip/')
+    move_subset_images(drip_df, 'resized_dataset/', 'labelled_dataset/drip/')
+    move_subset_images(not_drip_df, 'resized_dataset/', 'labelled_dataset/not_drip/')
 
 
 def main():
@@ -238,10 +238,10 @@ def main():
     dataset_path = "clothes_dataset/"
 
     # Create metadata DF from results.json
-    # df = build_img_df(dataset_path, json_path)
+    df = build_img_df(dataset_path, json_path)
 
     # Load the image metadata DataFrame if its been created previously
-    df = get_metadata_df(path)
+    # df = get_metadata_df(path)
 
     # Will be used for getting analytics as to what portion of of our dataset if made up of each clothes type
     # named_pc_df = calculate_clothes_type(df)
@@ -249,10 +249,12 @@ def main():
     # Calculates what percentage of the dataset has been given a classification 
     # get_dataset_pc_classified(json_path, dataset_path)
 
-    # grouped_df, largest_subset_df = create_height_width_groups(df)
+    grouped_df, largest_subset_df = create_height_width_groups(df)
 
-    # create_resized_dataset(df, largest_subset_df)
+    # Once dataset is annotated resize images to begin training
+    create_resized_dataset(df, largest_subset_df)
 
+    # Split dataset based into class folders
     split_dataset(df)
 
     # # Create seperate csv's for each height_width subset

@@ -28,8 +28,11 @@ def create_folder_structure(path):
 #     img_width = 300
 
 #     # Split dataset
-#     train_ds = tf.keras.utils.image_dataset_from_directory(dataset_path, validation_split=0.2, subset="training", seed=123, image_size=(img_height, img_width), batch_size=batch_size)
-#     val_ds = tf.keras.utils.image_dataset_from_directory(dataset_path, validation_split=0.2, subset="validation", seed=123, image_size=(img_height, img_width), batch_size=batch_size)
+    train_ds = tf.keras.utils.image_dataset_from_directory(dataset_path, validation_split=0.2, subset="training", seed=123, image_size=(img_height, img_width), batch_size=batch_size)
+    val_ds = tf.keras.utils.image_dataset_from_directory(dataset_path, validation_split=0.2, subset="validation", seed=123, image_size=(img_height, img_width), batch_size=batch_size)
+    
+    class_names = train_ds.class_names
+    print(class_names)
 
     # Need to rename resized dataset with ther 
 
@@ -40,7 +43,7 @@ def main():
     Use bounding box to find tagret location (Regions of Interest)
     Classification
     '''
-    dataset_path = 'resized_dataset/'
+    dataset_path = 'final_dataset/'
     create_folder_structure(dataset_path)
     a-b
     # train(dataset_path)
