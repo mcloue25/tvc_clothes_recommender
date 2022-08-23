@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot  as plt
 
 from PIL import Image
+from utils import * 
 
 clothes_types = {'coat': ["coat"]}
 
@@ -26,11 +27,6 @@ clothes = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 
 #     # Calculate % of dataset thats been completed 
 #     print("Current length =", dataset_size - 1)
 #     print("% Done:", 100 * (dataset_size/len(os.listdir(dataset_path))))
-
-
-def create_folder(folder_name):
-    if not os.path.exists(folder_name):
-        os.mkdir(folder_name)
 
 
 def create_csv(df, path, name):
