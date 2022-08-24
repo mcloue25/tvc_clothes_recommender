@@ -36,7 +36,7 @@ def get_model_summary(model):
 
 def create_model(train_ds, val_ds, class_names, img_height, img_width, batch_size):
 
-    # adding buffered prefetching to prevent disk I/O bottlenecking
+    # Add buffered prefetching to prevent disk I/O bottlenecking
     AUTOTUNE = tf.data.AUTOTUNE
     train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
     val_ds = val_ds.cache().prefetch(buffer_size=AUTOTUNE)
@@ -45,11 +45,18 @@ def create_model(train_ds, val_ds, class_names, img_height, img_width, batch_siz
     normalization_layer = layers.Rescaling(1./255)
     normalized_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
     image_batch, labels_batch = next(iter(normalized_ds))
+
+    # Data Augmentation
+    data_augmentation = tf.keras.Sequential([
+            layers.RandomFlip("horizontal_and_vertical"),
+            layers.RandomRotation(0.2),])
+
     
-    # Define our model
+    # Define model
     num_classes = len(class_names)
     model = Sequential([
           layers.Rescaling(1./255, input_shape=(img_height, img_width, 3)),
+          data_augmentation,
           layers.Conv2D(16, 3, padding='same', activation='relu'),
           layers.MaxPooling2D(),
           layers.Conv2D(32, 3, padding='same', activation='relu'),
@@ -70,8 +77,7 @@ def create_model(train_ds, val_ds, class_names, img_height, img_width, batch_siz
     history = model.fit(
             train_ds,
             validation_data=val_ds,
-            epochs=epochs
-    )
+            epochs=epochs)
 
     return model, history, epochs
 
@@ -101,9 +107,6 @@ def plot_model_results(history, epochs):
     plt.show()
 
 
-    
-
-    # Need to rename resized dataset with ther 
 
 def main():
     '''

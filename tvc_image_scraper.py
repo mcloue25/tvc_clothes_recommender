@@ -146,6 +146,9 @@ def check_for_duplicates(folder_path):
     search = dif(folder_path, folder_path)
     # Convert the search result to a list containing all of the file paths to duplicate images in the folder
     duplicate_list = list(search.lower_quality)
+
+    print("DUPLICATE LIST:")
+    print(duplicate_list)
     
     if duplicate_list:
         print("HERE", duplicate_list)
@@ -153,12 +156,16 @@ def check_for_duplicates(folder_path):
 
         # Remove duplicate images from the dataset folder to a duplicate folder which will be deleted 
         for duplicate_uid in duplicate_names:
-            src_path = folder_path + duplicate_uid
+            src_path = folder_path + "/" + duplicate_uid
             try:
                 os.remove(src_path)
         
+            # except OSError as e: # name the Exception `e`
+            #     print("Failed with:", e.strerror)# look what it says
+            #     # print("Error code:", e.code )
+
             except:
-                print("Couldn't :", duplicate_uid)
+                print("Couldn't :", src_path)
 
     return
 
@@ -306,7 +313,7 @@ def run_scrapers(formatted_date, folder_name):
     
     # Run web scrapers
     # scrape_wearTVC(formatted_date)
-    scrape_donn_clothing(formatted_date)
+    # scrape_donn_clothing(formatted_date)
     # scrape_tola_vintage(formatted_date)
 
     # Remove any duplicate images from the dataset if they exist  clothes_dataset
