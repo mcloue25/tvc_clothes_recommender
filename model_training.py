@@ -12,6 +12,9 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
+# tf.keras.applications.resnet50.ResNet50
+from tensorflow.keras import resnet50
+
 from utils import *
 
 ''' Links:
@@ -80,6 +83,7 @@ def create_model(train_ds, val_ds, class_names, img_height, img_width, batch_siz
             epochs=epochs)
 
     return model, history, epochs
+
 
 
 def plot_model_results(history, epochs):
