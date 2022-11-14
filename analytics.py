@@ -3,16 +3,18 @@ import cv2
 import json
 import shutil
 import os.path
-
 import pandas as pd
+import tensorflow as tf
 import matplotlib.pyplot  as plt
 
 from PIL import Image
+from tensorflow.keras.utils import load_img
+from tensorflow.keras.utils import img_to_array
+from keras.models import load_model
+
 from utils import * 
 
 clothes_types = {'coat': ["coat"]}
-
-clothes = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
     
 
 # def get_dataset_pc_classified(json_path, dataset_path):
@@ -29,21 +31,15 @@ clothes = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 
 #     print("% Done:", 100 * (dataset_size/len(os.listdir(dataset_path))))
 
 
-def create_csv(df, path, name):
-    ''' Used for saving csv's
+def get_metadata_df(path, json_path):
+    ''' Checks if a metadatacsv has already been made & if not creates one form results.json s
     '''
-    print("Creating ", name)
-    file_path = path + name 
-    df.to_csv(file_path)
-    return
-
-def import_json(json_path):
-    ''' Takes in a JSON path & returns the json object
-    '''
-    with open(json_path, "r") as f:
-        json_data = json.load(f)
-
-    return json_data
+    if os.path.exists(path):
+        df = pd.read_csv(path)
+        df.set_index("id", inplace=True)
+    else:
+        df = build_img_df(dataset_path, json_path)
+    return df
 
 
 def build_img_df(folder_path, json_path):
@@ -76,14 +72,6 @@ def build_img_df(folder_path, json_path):
     return img_df
 
 
-def get_metadata_df(path):
-    ''' Used to read in a csv path and return the dataframe
-    '''
-    df = pd.read_csv(path, delimiter=',', sep=r', ')
-    df.set_index("id", inplace=True)
-    return df
-
-
 def create_height_width_groups(df):
     ''' Groups the img data based on image height & width so that we can begin experimenting with the largest subset of images
     Args:
@@ -114,15 +102,54 @@ def segmment_dataset_by_img_dims(metadata_df, grouped_df):
 
 
 
-def calculate_clothes_type(df):
+def calculate_clothes_type(df, dataset_path):
     ''' Used for calculating what % of the dataset is made up of each clothes type
     '''
-    named_df = df.loc[~(df.index.str.startswith('_'))]
-    pattern = '|'.join(clothes)
+    # Different type of clothes item types that we'll use for calculating named distribution of dataset
+    clothes_types = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
+
+    unnamed_df = df.loc[(df.index.str.startswith('_'))]
+    named_df = df.loc[~(df.index.isin(unnamed_df.index))]
+    pattern = '|'.join(clothes_types)
     named_df['clothes_type'] = named_df.index.str.contains(pattern)
+
+    # Use keras model to come up with clothes_item_names for each undefined image
+    assign_item_types(unnamed_df, dataset_path)
     named_pc_df = named_df['clothes_type'].value_counts(normalize=True).mul(100).astype(str)+'%'
 
     return named_pc_df
+
+
+def assign_item_types(unnamed_clothes_df, dataset_path):
+    ''' Function used for predicting clothes item types 
+    '''
+    model = load_model('saved_model/clothes_detection_model')
+    unnamed_clothes_df.reset_index(inplace=True)
+
+    print(unnamed_clothes_df)
+
+    for index, row in unnamed_clothes_df.iterrows():
+
+        # Need to find downsizing method that will work best on images 
+        image_path = dataset_path + row.id
+        image = Image.open(image_path + image_loc)
+        resized_image = image.resize((28, 28), resample=1)
+
+        img = tf.keras.utils.load_img(image_path, target_size=(row.img_height, row.img_width))
+        img_array = tf.keras.utils.img_to_array(img)
+        img_array = tf.expand_dims(img_array, 0) # Create a batch
+        predictions = model.predict(img_array)
+        score = tf.nn.softmax(predictions[0])
+        print()
+        print("This image most likely belongs to {} with a {:.2f} percent confidence.".format(class_names[np.argmax(score)], 100 * np.max(score)))
+
+        print(row)
+        a-b
+
+        # Need to get size distribution of image dataset and might change the parameters of the model to best suit the data it will be working with
+        
+
+
     
 
 
@@ -224,28 +251,26 @@ def split_dataset(df):
     move_subset_images(not_drip_df, 'resized_dataset/', 'labelled_dataset/not_drip/')
 
 
-def main():
-
+def analytics_main():
+    ''' Main script for getting deeper insights into how the dataset is comprised 
+    '''
     create_folder("csv/")
 
     # Load image DF if its been made previously
-    path = "csv/img_metadata.csv"
-    json_path = "results.json"
-    dataset_path = "clothes_dataset/"
-
-    # Create metadata DF from results.json
-    df = build_img_df(dataset_path, json_path)
+    path = "data/csv/img_metadata.csv"
+    json_path = "data/json/results.json"
+    dataset_path = "data/datasets/clothes_dataset/"
 
     # Load the image metadata DataFrame if its been created previously
-    # df = get_metadata_df(path)
+    df = get_metadata_df(path, json_path)
 
     # Will be used for getting analytics as to what portion of of our dataset if made up of each clothes type
-    # named_pc_df = calculate_clothes_type(df)
+    named_pc_df = calculate_clothes_type(df, dataset_path)
 
     # Calculates what percentage of the dataset has been given a classification 
     # get_dataset_pc_classified(json_path, dataset_path)
 
-    grouped_df, largest_subset_df = create_height_width_groups(df)
+    # grouped_df, largest_subset_df = create_height_width_groups(df)
 
     # Once dataset is annotated resize images to begin training
     create_resized_dataset(df, largest_subset_df)
@@ -265,4 +290,4 @@ def main():
     # visualise_img_metadata(df, grouped_df)
 
 if __name__ == "__main__":
-    main()
+    analytics_main()
