@@ -107,7 +107,6 @@ def calculate_clothes_type(df, dataset_path):
     '''
     # Different type of clothes item types that we'll use for calculating named distribution of dataset
     clothes_types = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
-
     unnamed_df = df.loc[(df.index.str.startswith('_'))]
     named_df = df.loc[~(df.index.isin(unnamed_df.index))]
     pattern = '|'.join(clothes_types)
@@ -126,16 +125,19 @@ def assign_item_types(unnamed_clothes_df, dataset_path):
     model = load_model('saved_model/clothes_detection_model')
     unnamed_clothes_df.reset_index(inplace=True)
 
-    print(unnamed_clothes_df)
-
+    # print(unnamed_clothes_df)
+    create_folder('data/tmp/')
     for index, row in unnamed_clothes_df.iterrows():
 
+        ''' Error is currently here to do with how im resizing and passing the images of unamed clothes types to the model
+        '''
         # Need to find downsizing method that will work best on images 
         image_path = dataset_path + row.id
-        image = Image.open(image_path + image_loc)
-        resized_image = image.resize((28, 28), resample=1)
+        image = Image.open(image_path)
+        resized_img = image.resize((28, 28), resample=3)
+        resized_img.save('data/tmp/test.jpg')
 
-        img = tf.keras.utils.load_img(image_path, target_size=(row.img_height, row.img_width))
+        img = tf.keras.utils.load_img('data/tmp/test.jpg')
         img_array = tf.keras.utils.img_to_array(img)
         img_array = tf.expand_dims(img_array, 0) # Create a batch
         predictions = model.predict(img_array)
@@ -273,10 +275,10 @@ def analytics_main():
     # grouped_df, largest_subset_df = create_height_width_groups(df)
 
     # Once dataset is annotated resize images to begin training
-    create_resized_dataset(df, largest_subset_df)
+    # create_resized_dataset(df, largest_subset_df)
 
     # Split dataset based into class folders
-    split_dataset(df)
+    # split_dataset(df)
 
     # # Create seperate csv's for each height_width subset
     # segmment_dataset_by_img_dims(df, grouped_df)
