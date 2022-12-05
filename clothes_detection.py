@@ -1,4 +1,5 @@
 # save the final model to file
+import tensorflow as tf
 from keras.datasets import fashion_mnist
 from keras.utils import to_categorical
 from keras.models import Sequential
@@ -34,7 +35,8 @@ def prep_pixels(train, test):
     test_norm = test_norm / 255.0
     # return normalized images
     return train_norm, test_norm
- 
+
+
 # define cnn model
 def define_model():
     model = Sequential()
@@ -51,9 +53,42 @@ def define_model():
 
 
 
+
+def tf_fashion_mnist_model():
+    fashion_mnist = tf.keras.datasets.fashion_mnist
+
+    (train_images, train_labels), (test_images, test_labels) = fashion_mnist.load_data()
+    class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+    train_images = train_images / 255.0
+    test_images = test_images / 255.0
+
+    model = tf.keras.Sequential([
+    tf.keras.layers.Flatten(input_shape=(28, 28)),
+    tf.keras.layers.Dense(128, activation='relu'),
+    tf.keras.layers.Dense(10)])
+
+    model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
+    model.fit(train_images, train_labels, epochs=10)
+    test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=2)
+    print('\nTest accuracy:', test_acc)
+    model.save('saved_model/clothes_detection_model_tf_example')
+
+
+
+
+
+
+
+
+
+
 def clothes_detection_main():
     '''
     '''
+
+    tf_fashion_mnist_model()
+    a-b
+
     # load & prepare dataset
     trainX, trainY, testX, testY = load_dataset()
     trainX, testX = prep_pixels(trainX, testX)
