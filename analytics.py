@@ -8,6 +8,9 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot  as plt
 
+
+import itertools
+
 from PIL import Image
 from keras.models import load_model
 from tensorflow.keras.utils import load_img
@@ -15,25 +18,25 @@ from tensorflow.keras.utils import img_to_array
 
 from utils import * 
 
-clothes_types = {'coat': ["coat"]}
+
+from clothes_detection import *
     
 
-# def get_dataset_pc_classified(json_path, dataset_path):
-#     ''' Checks whats precentage of the dataset has been classified
-#     '''
-#     json_data = import_json(json_path)
+def get_dataset_pc_classified(json_path, dataset_path):
+    ''' Checks whats precentage of the dataset has been classified
+    '''
+    json_data = import_json(json_path)
+    ids = list(json_data.keys())
+    class_results = list(json_data.values())
+    dataset_size = len(ids)
+    # Calculate % of dataset thats been completed 
+    print("Current length =", dataset_size - 1)
+    print("% Done:", 100 * (dataset_size/len(os.listdir(dataset_path))))
 
-#     ids = list(json_data.keys())
-#     class_results = list(json_data.values())
-#     dataset_size = len(ids)
-
-#     # Calculate % of dataset thats been completed 
-#     print("Current length =", dataset_size - 1)
-#     print("% Done:", 100 * (dataset_size/len(os.listdir(dataset_path))))
 
 
 def get_metadata_df(path, json_path):
-    ''' Checks if a metadatacsv has already been made & if not creates one form results.json s
+    ''' Checks if a metadata CSV has already been made & if not creates one form results.json s
     '''
     if os.path.exists(path):
         df = pd.read_csv(path)
@@ -43,15 +46,16 @@ def get_metadata_df(path, json_path):
     return df
 
 
+
 def build_img_df(folder_path, json_path):
     ''' Used to collect metadata on each image in the dataset
     Args:
         folder_path (String) : A String storing the path to the folder containing the image dataset
     '''
     img_data = []
-
     json_data = import_json(json_path)
 
+    # Extract metadata about each image to be stored in our image metadata DF
     for image_name in os.listdir(folder_path):
         img = cv2.imread(folder_path + image_name)
         # Store image data
@@ -65,7 +69,7 @@ def build_img_df(folder_path, json_path):
         img_meta["aspect_ratio"] = round(img_meta["img_width"] / img_meta["img_height"], 2)
         img_data.append(img_meta)
 
-    # Create DataFrame and save to CSV
+    # Create Image 
     img_df = pd.DataFrame.from_dict(img_data)
     img_df.set_index("id", inplace=True)
     create_csv(img_df, "csv/", "img_metadata.csv")
@@ -106,27 +110,55 @@ def segmment_dataset_by_img_dims(metadata_df, grouped_df):
 def calculate_clothes_type(df, dataset_path):
     ''' Used for calculating what % of the dataset is made up of each clothes type
     '''
-    # Different type of clothes item types that we'll use for calculating named distribution of dataset
-    clothes_types = ['fleece', 'tee', 't-shirt', 'shirt', 'pants', 'trousers', 'bottoms', 'jacket', 'coat', 'hoodie']
-    unnamed_df = df.loc[(df.index.str.startswith('_'))]
-    named_df = df.loc[~(df.index.isin(unnamed_df.index))]
-    pattern = '|'.join(clothes_types)
-    named_df['clothes_type'] = named_df.index.str.contains(pattern)
+    clothes_dict = {'coat': ["coat", 'jacket', 'puffer', 'gilet', ], 
+                    'Top': ['hoodie', 'sweater',  'top', 'jumper', 'cardigan'],
+                    'tshirt': ["t-shirt", 'shirt', 'long_sleeve', 'vest', 'polo'],
+                    'bottoms': ['pants', 'trousers', 'bottoms', 'sweats', 'jeans'],
+                    'other': ['hat', 'cap', 'bag', 'boilersuit', 'dungaree']}
+    
+    # Split dataset based on whether the row contains a clothes type identifier 
+    clothes_types = list(itertools.chain.from_iterable(clothes_dict.values()))
+    df['has_clothes_type_identifer'] = df.index.str.contains('|'.join(clothes_types))
+    named_df = df.loc[df['has_clothes_type_identifer'] == True]
+    unnamed_df = df.loc[df['has_clothes_type_identifer'] == False]
+
+
+    # named_pc_df = df['has_clothes_type_identifer'].value_counts(normalize=True).mul(100).astype(str)+'%'
 
     # Use keras model to come up with clothes_item_names for each undefined image
-    assign_item_types(unnamed_df, dataset_path)
-    named_pc_df = named_df['clothes_type'].value_counts(normalize=True).mul(100).astype(str)+'%'
+    # assign_clothes_identifier(unnamed_df, dataset_path)
 
+    # Calculate distribution of classes in dataset
+    counts_df = get_class_distribution_counts(named_df, clothes_types)
+
+    print(counts_df)
+    # print(count_df)
+    a-b
     return named_pc_df
 
 
-def assign_item_types(unnamed_clothes_df, dataset_path):
-    ''' Function used for predicting clothes item types 
-    https://www.tensorflow.org/tutorials/keras/classification
+def get_class_distribution_counts(df, class_names):
+    ''' Used to see the distribution of each clothes typoes throughouut our dataset
     '''
-    class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+    clothes_identifiers = []
+    for uid in df.index:
+        clothes_identifiers.append(' '.join([i for i in class_names if  i in str(uid)]))
+    
+    df['identifier'] = clothes_identifiers
+    value_counts_df = df['identifier'].value_counts().to_frame()
+    value_counts_df.columns = ['identifier', 'count']
+    return value_counts_df
 
-    model = load_model('saved_model/clothes_detection_model_tf_example')
+
+
+def assign_clothes_identifier(unnamed_clothes_df, dataset_path):
+    ''' Function used for predicting clothes item types 
+        https://www.tensorflow.org/tutorials/keras/classification
+        Fix for bag class error: https://stackoverflow.com/questions/57034292/fashion-mnist-code-giving-bag-as-output-for-every-single-real-world-image
+    '''
+    class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+                   'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+    probability_model = load_model('saved_model/clothes_detection_model')
     unnamed_clothes_df.reset_index(inplace=True)
 
     # print(unnamed_clothes_df)
@@ -137,32 +169,107 @@ def assign_item_types(unnamed_clothes_df, dataset_path):
         '''
         # Need to find downsizing method that will work best on images 
         image_path = dataset_path + row.id
-        image = Image.open(image_path)
-        resized_img = image.resize((28, 28), resample=3)
-        resized_img.save('data/tmp/test.jpg')
+        print(image_path)
+        a-b
+        img = cv2.imread(dataset_path + row.id)
+        height, width, channels = img.shape
+        print(height, width, channels)
+        # resize image
+        resized_img = cv2.resize(img, (28, 28))
+        greyscale_image = cv2.cvtColor(resized_img, cv2.COLOR_BGR2GRAY)
+        print(greyscale_image.shape)
 
-        img = cv2.imread('data/tmp/test.jpg', 0)
-        img = cv2.resize(img,(28, 28))
-        imageee = img
-        img = 255 - img
+        greyscale_image = greyscale_image / 255.0
+        print(greyscale_image)
 
-        img = tf.expand_dims(img, 0) # Create a batch
-        predictions = model.predict(img)
-        score = tf.nn.softmax(predictions[0])
+        print()
+        print()
+        print(greyscale_image.shape)
+        # plot_image(greyscale_image)
+
+        # Cool image could use for automated art
+        # plt.plot(img)
+        # plt.show()
+
+        # image = Image.open(image_path)
+        # resized_img = image.resize((28, 28), resample=3)
+        # resized_img.save('data/tmp/test.jpg')
+
+        # print(type(resized_img.shape))
+
+        img = (np.expand_dims(greyscale_image, 0))
+        predictions_single = probability_model.predict(img)
+        print()
+        print()
+        print(predictions_single[0])
+        print()
+        print()
+        class_prediction = np.argmax(predictions_single[0])
+        print()
+        print()
+        print("This image most likely belongs to {} with a {:.2f} percent confidence.".format(class_names[np.argmax(predictions_single[0])]))
+        print()
+        print()
+        a-b
+
+
+
+def plot_image(image):
+    ''' Used for plotting images using cv2
+    '''
+    cv2.imshow('image',image)
+    cv2.waitKey(0)
+    return
+
+# def assign_clothes_identifier(unnamed_clothes_df, dataset_path):
+#     ''' Function used for predicting clothes item types 
+#         https://www.tensorflow.org/tutorials/keras/classification
+#         Fix for bag class error: https://stackoverflow.com/questions/57034292/fashion-mnist-code-giving-bag-as-output-for-every-single-real-world-image
+#     '''
+#     class_names = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+#                    'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+#     model = load_model('saved_model/clothes_detection_model')
+#     unnamed_clothes_df.reset_index(inplace=True)
+
+#     # print(unnamed_clothes_df)
+#     create_folder('data/tmp/')
+#     for index, row in unnamed_clothes_df.iterrows():
+
+#         ''' Error is currently here to do with how im resizing and passing the images of unamed clothes types to the model
+#         '''
+#         # Need to find downsizing method that will work best on images 
+#         image_path = dataset_path + row.id
+#         image = Image.open(image_path)
+#         resized_img = image.resize((28, 28), resample=3)
+#         resized_img.save('data/tmp/test.jpg')
+
+#         img = cv2.imread('data/tmp/test.jpg', 0)
+#         img = cv2.resize(img,(28, 28))
+#         img = 255 - img
+
+#         img = tf.expand_dims(img, 0) # Create a batch
+
+#         print("---------------------------------------------")
+#         print(img)
+#         print("---------------------------------------------")
+#         predictions = model.predict(img)
+#         score = tf.nn.softmax(predictions[0])
         
-        print("This image most likely belongs to {} with a {:.2f} percent confidence.".format(class_names[np.argmax(score)], 100 * np.max(score)))
+#         print("This image most likely belongs to {} with a {:.2f} percent confidence.".format(class_names[np.argmax(score)], 100 * np.max(score)))
 
-        plt.figure()
-        plt.imshow(imageee)
-        plt.colorbar()
-        plt.grid(False)
-        plt.show()
-
+#         plt.figure()
+#         plt.imshow(img)
+#         plt.colorbar()
+#         plt.grid(False)
+#         plt.show()
+#         a-b
         # Need to get size distribution of image dataset and might change the parameters of the model to best suit the data it will be working with
         
 
 
-    
+def compare_train_test_image(train_path, test_path):
+    ''' Compare the channels of a train & test image to see what everything is being labelled as a bag 
+    '''
 
 
 def get_class_distribution(df):
@@ -276,12 +383,15 @@ def analytics_main():
     # Load the image metadata DataFrame if its been created previously
     df = get_metadata_df(path, json_path)
 
-    # Test dataset for fixing the BAG class problem
-    test_dataset_path = "data/datasets/test_dataset/"
-    test_df = df.loc[df.index.isin(os.listdir(test_dataset_path))]
+    # ---- TESTING ---- Test dataset for fixing the BAG class problem
+    # test_dataset_path = "data/datasets/test_dataset/"
+    # test_df = df.loc[df.index.isin(os.listdir(test_dataset_path))]
+    # train_image_path = ""
+    # test_image_path = "data/datasets/test_dataset/_2_36_10_03_2022.jpg"
+    # compare_train_test_image()
 
     # Will be used for getting analytics as to what portion of of our dataset if made up of each clothes type
-    named_pc_df = calculate_clothes_type(test_df, test_dataset_path)
+    named_pc_df = calculate_clothes_type(df, dataset_path)
 
     # Calculates what percentage of the dataset has been given a classification 
     # get_dataset_pc_classified(json_path, dataset_path)
